@@ -35,9 +35,17 @@ class Dataset():
         balance_sheet = balance_sheet_merged_data.drop('reportedCurrency', axis=1)
         income_statement = income_statement_merged_data.drop('reportedCurrency', axis=1)
 
+        # add a YYYY-MM formated fiscal date to both dataset
+        # merging will be done using this instead of YYYY-MM-DD
+        # this because EDA showed that using YYYY-MM-DD brought some issues
+        balance_sheet['YM_date'] = balance_sheet['fiscalDateEnding'].str[:7]
+        income_statement['YM_date'] = income_statement['fiscalDateEnding'].str[:7]
+
         # merging balance sheet and income statement merged_data
         print('---- merging balance sheet and income statement data..')
-        self.merged_data = balance_sheet.merge(income_statement, how='inner', on=['symbol', 'fiscalDateEnding'])
+        self.merged_data = balance_sheet.merge(income_statement, how='inner', on=['symbol', 'YM_date'])
+        self.merged_data.drop(['YM_date', 'fiscalDateEnding_y'], axis=1, inplace=True)
+        self.merged_data.rename(columns={'fiscalDateEnding_x': 'fiscalDateEnding'}, inplace=True)
 
         # adding EPS merged_data
         # will require several steps as the dates from the different files do necessarily match perfectly
@@ -46,8 +54,6 @@ class Dataset():
         print('------ Using the exact date..')
         self.merged_data = self.merged_data.merge(eps_data, on=['fiscalDateEnding', 'symbol'], how='left')
         print(f"-------- missing eps values: {round(100 * self.merged_data['reportedEPS'].isna().sum() / len(self.merged_data['reportedEPS'].values),2)}%")
-
-
         
         # then try merging only the year and month
         print('------ using the year and the month only..')
